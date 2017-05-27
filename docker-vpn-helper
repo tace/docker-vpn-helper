@@ -77,8 +77,21 @@ if [[ ${SERVER_PEM} != *"CN=localhost"* && ${SERVER_PEM} != *"IP:127.0.0.1"* ]];
     #Let's be good citizens.  Preserve the original cert and re-use the private key.
     mv ${DOCKER_MACHINES_HOME}/${B2D_MACHINE_NAME}/server.pem ${DOCKER_MACHINES_HOME}/${B2D_MACHINE_NAME}/server.pem.bak
 
+    opensslSubject=/CN=localhost
+    if [ "$(uname)" == "Darwin" ]; then
+        # Do something under Mac OS X platform
+    elif [ "$(expr substr $(uname -s) 1 5)" == "Linux" ]; then
+        # Do something under GNU/Linux platform
+    elif [ "$(expr substr $(uname -s) 1 10)" == "MINGW32_NT" ]; then
+        # Fix MinGW/MSYS problem, see https://stackoverflow.com/questions/31506158/running-openssl-from-a-bash-script-on-windows-subject-does-not-start-with
+        opensslSubject=//CN=localhost
+    elif [ "$(expr substr $(uname -s) 1 10)" == "MINGW64_NT" ]; then
+        # Fix MinGW/MSYS problem, see https://stackoverflow.com/questions/31506158/running-openssl-from-a-bash-script-on-windows-subject-does-not-start-with
+        opensslSubject=//CN=localhost
+    fi
+
     #Create a new cert for the Docker daemon and sign it
-    openssl req -subj "/CN=localhost" -sha256 -new -key ${DOCKER_MACHINES_HOME}/${B2D_MACHINE_NAME}/server-key.pem -out ${DOCKER_MACHINES_HOME}/${B2D_MACHINE_NAME}/server.csr
+    openssl req -subj "${opensslSubject}" -sha256 -new -key ${DOCKER_MACHINES_HOME}/${B2D_MACHINE_NAME}/server-key.pem -out ${DOCKER_MACHINES_HOME}/${B2D_MACHINE_NAME}/server.csr
     echo "subjectAltName = IP:$(docker-machine ip ${B2D_MACHINE_NAME}),IP:127.0.0.1" > ${DOCKER_MACHINES_HOME}/${B2D_MACHINE_NAME}/extfile.cnf
     openssl x509 -req -days 365 -sha256 -in ${DOCKER_MACHINES_HOME}/${B2D_MACHINE_NAME}/server.csr -CA ${DOCKER_CERTS_HOME}/ca.pem -CAkey ${DOCKER_CERTS_HOME}/ca-key.pem -set_serial 0x6f6e656a6c69 -out ${DOCKER_MACHINES_HOME}/${B2D_MACHINE_NAME}/server.pem -extfile ${DOCKER_MACHINES_HOME}/${B2D_MACHINE_NAME}/extfile.cnf
 
